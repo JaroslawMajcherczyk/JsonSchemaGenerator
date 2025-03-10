@@ -18,8 +18,7 @@ namespace JsonSchemaGenerator
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 var mainWindow = new MainWindow();
-                mainWindow.DataContext = new MainWindowViewModel(mainWindow); // PRZEKAZUJEMY INSTANCJÊ OKNA
-
+                mainWindow.DataContext = new MainWindowViewModel(mainWindow); 
                 desktop.MainWindow = mainWindow;
             }
 

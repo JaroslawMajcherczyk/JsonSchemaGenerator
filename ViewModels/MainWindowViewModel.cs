@@ -136,7 +136,7 @@ namespace JsonSchemaGenerator.ViewModels
         }
 
 
-
+        // Enhanced Code with Regex Pattern Support
         private string GenerateJsonSchema(string jsonPath)
         {
             string fileContent = File.ReadAllText(jsonPath);
@@ -146,13 +146,13 @@ namespace JsonSchemaGenerator.ViewModels
 
             foreach (var property in jsonObject.Properties())
             {
-                schema.Properties.Add(property.Name, GenerateSchemaForToken(property.Value));
+                schema.Properties.Add(property.Name, GenerateSchemaForToken(property.Value, property.Name));
             }
 
             return schema.ToString((SchemaVersion)Formatting.Indented);
         }
 
-        private JSchema GenerateSchemaForToken(JToken token)
+        private JSchema GenerateSchemaForToken(JToken token, string propertyName = "")
         {
             if (token.Type == JTokenType.Object)
             {
@@ -160,7 +160,7 @@ namespace JsonSchemaGenerator.ViewModels
 
                 foreach (var childProperty in token.Children<JProperty>())
                 {
-                    schema.Properties.Add(childProperty.Name, GenerateSchemaForToken(childProperty.Value));
+                    schema.Properties.Add(childProperty.Name, GenerateSchemaForToken(childProperty.Value, childProperty.Name));
                 }
 
                 return schema;
@@ -169,21 +169,31 @@ namespace JsonSchemaGenerator.ViewModels
             {
                 var schema = new JSchema { Type = JSchemaType.Array };
 
-                // Pobieramy unikalne typy elementów tablicy
                 var uniqueTypes = token.Children().Select(GetJSchemaType).Distinct().ToList();
 
                 if (uniqueTypes.Count == 1)
                 {
-                    // Jeśli wszystkie elementy mają ten sam typ, ustawiamy go w "items"
                     schema.Items.Add(new JSchema { Type = uniqueTypes.First() });
                 }
                 else
                 {
-                    // Jeśli mamy mieszane typy, dodajemy wszystkie unikalne typy do AnyOf
                     foreach (var type in uniqueTypes)
                     {
                         schema.AnyOf.Add(new JSchema { Type = type });
                     }
+                }
+
+                return schema;
+            }
+            else if (token.Type == JTokenType.String)
+            {
+                var schema = new JSchema { Type = JSchemaType.String };
+
+                // ** Apply regex pattern if the property name matches known patterns **
+                string detectedPattern = GetPatternForProperty(propertyName, token.ToString());
+                if (!string.IsNullOrEmpty(detectedPattern))
+                {
+                    schema.Pattern = detectedPattern;
                 }
 
                 return schema;
@@ -193,8 +203,6 @@ namespace JsonSchemaGenerator.ViewModels
                 return new JSchema { Type = GetJSchemaType(token) };
             }
         }
-
-
 
         private JSchemaType GetJSchemaType(JToken token)
         {
@@ -206,9 +214,36 @@ namespace JsonSchemaGenerator.ViewModels
                 JTokenType.Boolean => JSchemaType.Boolean,
                 JTokenType.Object => JSchemaType.Object,
                 JTokenType.Array => JSchemaType.Array,
-                _ => JSchemaType.String // Domyślnie traktujemy jako string
+                _ => JSchemaType.String // Default to string
             };
         }
+
+        /// <summary>
+        /// Detects a regex pattern for known string-based properties.
+        /// </summary>
+        private string GetPatternForProperty(string propertyName, string value)
+        {
+            Dictionary<string, string> knownPatterns = new()
+            {
+                { "code", "^[A-Z]{3}-\\d{3}$" },  // Matches "ABC-123" format
+                { "phone", "^\\+\\d{1,3}-\\d{9,15}$" },  // Matches "+48-123456789"
+                { "email", "^[\\w.-]+@[a-zA-Z_-]+?\\.[a-zA-Z]{2,6}$" },  // Matches emails
+                { "postalCode", "^\\d{2}-\\d{3}$" },  // Matches "00-123" format
+                { "date", "^\\d{4}-\\d{2}-\\d{2}$" }  // Matches "YYYY-MM-DD" format
+            };
+
+            if (knownPatterns.TryGetValue(propertyName.ToLower(), out string pattern))
+            {
+                return pattern;
+            }
+
+            // ** Attempt automatic pattern inference from the value **
+            if (value.All(char.IsDigit) && value.Length == 4) return "^\\d{4}$"; // Matches "1234"
+            if (value.All(char.IsDigit) && value.Length == 6) return "^\\d{6}$"; // Matches "123456"
+
+            return string.Empty; // No pattern detected
+        }
+
 
         // Validation JSON with JSON Schema
 

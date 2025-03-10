@@ -3,7 +3,7 @@
         xmlns:vm="using:JsonSchemaGenerator.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        Width="550" Height="500"
         x:Class="JsonSchemaGenerator.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
@@ -17,18 +17,19 @@
 
 	<StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
 		<StackPanel>
-			<TextBlock>Generate Schema form Json</TextBlock>
-			<Button Name="SelectJsonButton" Content="Wybierz plik JSON" Command="{Binding SelectJsonCommand}"/>
-			<Button Name="SaveSchemaButton" Content="Zapisz JSON Schema" Command="{Binding SaveSchemaCommand}"/>
-		<TextBlock Name="ResultText" Text="{Binding ValidationResult}"/>
+			<TextBlock>Generate Schema from JSON</TextBlock>
+			<Button Name="SelectJsonButton" Content="Select JSON File" Command="{Binding SelectJsonCommand}"/>
+			<Button Name="SaveSchemaButton" Content="Save JSON Schema" Command="{Binding SaveSchemaCommand}"/>
+			<TextBlock Name="ResultText" Text="{Binding ValidationResult}"/>
 		</StackPanel>
 		<StackPanel Margin="0,50,0,0">
-			<TextBlock>Validate Schema with Json</TextBlock>
-			<Button Content="Wybierz plik JSON Schema" Command="{Binding SelectValidationSchemaCommand}"/>
-			<Button Content="Wybierz plik JSON" Command="{Binding SelectValidationJsonCommand}"/>
-			<Button Content="Porównaj" Command="{Binding CompareCommand}"/>
+			<TextBlock>Validate Schema with JSON</TextBlock>
+			<Button Content="Select JSON Schema File" Command="{Binding SelectValidationSchemaCommand}"/>
+			<Button Content="Select JSON File" Command="{Binding SelectValidationJsonCommand}"/>
+			<Button Content="Compare" Command="{Binding CompareCommand}"/>
 			<TextBlock Text="{Binding ComparisonResult}"/>
 		</StackPanel>
 	</StackPanel>
+
 
 </Window>
