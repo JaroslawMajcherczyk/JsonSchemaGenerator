@@ -145,7 +145,6 @@ namespace JsonSchemaGenerator.ViewModels
             return schema.ToString((SchemaVersion)Formatting.Indented);
         }
 
-
         private JSchema GenerateSchemaForToken(JToken token)
         {
             if (token.Type == JTokenType.Object)
@@ -163,9 +162,21 @@ namespace JsonSchemaGenerator.ViewModels
             {
                 var schema = new JSchema { Type = JSchemaType.Array };
 
-                if (token.Children().Any())
+                // Pobieramy unikalne typy elementów tablicy
+                var uniqueTypes = token.Children().Select(GetJSchemaType).Distinct().ToList();
+
+                if (uniqueTypes.Count == 1)
                 {
-                    schema.Items.Add(GenerateSchemaForToken(token.Children().First()));
+                    // Jeśli wszystkie elementy mają ten sam typ, ustawiamy go w "items"
+                    schema.Items.Add(new JSchema { Type = uniqueTypes.First() });
+                }
+                else
+                {
+                    // Jeśli mamy mieszane typy, dodajemy wszystkie unikalne typy do AnyOf
+                    foreach (var type in uniqueTypes)
+                    {
+                        schema.AnyOf.Add(new JSchema { Type = type });
+                    }
                 }
 
                 return schema;
@@ -175,6 +186,8 @@ namespace JsonSchemaGenerator.ViewModels
                 return new JSchema { Type = GetJSchemaType(token) };
             }
         }
+
+
 
         private JSchemaType GetJSchemaType(JToken token)
         {

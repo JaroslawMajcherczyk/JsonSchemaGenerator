@@ -16,10 +16,19 @@
     </Design.DataContext>
 
 	<StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+		<StackPanel>
+	    <TextBlock>Generate Schema form Json</TextBlock>
 		<Button Name="SelectJsonButton" Content="Wybierz plik JSON" Command="{Binding SelectJsonCommand}"/>
 		<Button Name="SaveSchemaButton" Content="Zapisz JSON Schema" Command="{Binding SaveSchemaCommand}"/>
-		<Button Name="ValidateJsonButton" Content="Waliduj JSON" Command="{Binding ValidateJsonCommand}" IsEnabled="False"/>
 		<TextBlock Name="ResultText" Text="{Binding ValidationResult}"/>
+		</StackPanel>
+		<StackPanel>
+		<TextBlock>Validate Schema with Json</TextBlock>
+		<Button Content="Wybierz plik JSON Schema"></Button>
+		<Button Content="Wybierz plik JSON"></Button>
+		<Button Command="{Binding Compare}"></Button>
+		<TextBlock Text="{Binding ComparisonResult}"></TextBlock>
+		</StackPanel>
 	</StackPanel>
 
 </Window>
