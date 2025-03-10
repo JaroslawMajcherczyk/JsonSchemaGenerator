@@ -17,17 +17,17 @@
 
 	<StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
 		<StackPanel>
-	    <TextBlock>Generate Schema form Json</TextBlock>
-		<Button Name="SelectJsonButton" Content="Wybierz plik JSON" Command="{Binding SelectJsonCommand}"/>
-		<Button Name="SaveSchemaButton" Content="Zapisz JSON Schema" Command="{Binding SaveSchemaCommand}"/>
+			<TextBlock>Generate Schema form Json</TextBlock>
+			<Button Name="SelectJsonButton" Content="Wybierz plik JSON" Command="{Binding SelectJsonCommand}"/>
+			<Button Name="SaveSchemaButton" Content="Zapisz JSON Schema" Command="{Binding SaveSchemaCommand}"/>
 		<TextBlock Name="ResultText" Text="{Binding ValidationResult}"/>
 		</StackPanel>
-		<StackPanel>
-		<TextBlock>Validate Schema with Json</TextBlock>
-		<Button Content="Wybierz plik JSON Schema"></Button>
-		<Button Content="Wybierz plik JSON"></Button>
-		<Button Command="{Binding Compare}"></Button>
-		<TextBlock Text="{Binding ComparisonResult}"></TextBlock>
+		<StackPanel Margin="0,50,0,0">
+			<TextBlock>Validate Schema with Json</TextBlock>
+			<Button Content="Wybierz plik JSON Schema" Command="{Binding SelectValidationSchemaCommand}"/>
+			<Button Content="Wybierz plik JSON" Command="{Binding SelectValidationJsonCommand}"/>
+			<Button Content="Porównaj" Command="{Binding CompareCommand}"/>
+			<TextBlock Text="{Binding ComparisonResult}"/>
 		</StackPanel>
 	</StackPanel>
 

@@ -9,26 +9,60 @@ using Newtonsoft.Json.Schema.Generation;
 using ReactiveUI;
 using System.Reactive;
 using Newtonsoft.Json;
+using System.Collections.Generic;
 
 namespace JsonSchemaGenerator.ViewModels
 {
     public class MainWindowViewModel : ViewModelBase
     {
         private Window _parentWindow;
-        private string _validationResult;
 
+        private string _validationResult;
         public string ValidationResult
         {
             get => _validationResult;
             set => this.RaiseAndSetIfChanged(ref _validationResult, value);
         }
+        private string _comparisonResult;
+        public string ComparisonResult
+        {
+            get => _comparisonResult;
+            set => this.RaiseAndSetIfChanged(ref _comparisonResult, value);
+        }
+
+        private string _validationJsonPath;
+
+        public string ValidationJsonPath
+        {
+            get => _validationJsonPath;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _validationJsonPath, value);
+                this.RaisePropertyChanged(nameof(ValidationJsonPath)); // Aktualizujemy ReactiveUI
+            }
+        }
+        private string _validationSchemaPath;
+
+        public string ValidationSchemaPath
+        {
+            get => _validationSchemaPath;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _validationSchemaPath, value);
+                this.RaisePropertyChanged(nameof(ValidationSchemaPath)); // Aktualizujemy ReactiveUI
+            }
+        }
+
+
 
         public string JsonPath { get; set; }
         public string SchemaPath { get; set; }
 
         public ReactiveCommand<Unit, Unit> SelectJsonCommand { get; }
         public ReactiveCommand<Unit, Unit> SaveSchemaCommand { get; }
-        public ReactiveCommand<Unit, Unit> ValidateJsonCommand { get; }
+        public ReactiveCommand<Unit, Unit> SelectValidationJsonCommand { get; }
+        public ReactiveCommand<Unit, Unit> SelectValidationSchemaCommand { get; }
+        public ReactiveCommand<Unit, Unit> CompareCommand { get; }
 
         public MainWindowViewModel(Window parentWindow)
         {
@@ -36,15 +70,22 @@ namespace JsonSchemaGenerator.ViewModels
 
             SelectJsonCommand = ReactiveCommand.CreateFromTask(SelectJson);
             SaveSchemaCommand = ReactiveCommand.CreateFromTask(SaveSchema, this.WhenAnyValue(x => x.JsonPath, jsonPath => !string.IsNullOrEmpty(jsonPath)));
-            ValidateJsonCommand = ReactiveCommand.CreateFromTask(ValidateJson, this.WhenAnyValue(x => x.SchemaPath, path => !string.IsNullOrEmpty(path)));
+
+            SelectValidationJsonCommand = ReactiveCommand.CreateFromTask(SelectValidationJson);
+            SelectValidationSchemaCommand = ReactiveCommand.CreateFromTask(SelectValidationSchema);
+            CompareCommand = ReactiveCommand.CreateFromTask(Compare, this.WhenAnyValue(
+                x => x.ValidationJsonPath,
+                x => x.ValidationSchemaPath,
+                (json, schema) => !string.IsNullOrEmpty(json) && !string.IsNullOrEmpty(schema)
+            ));
         }
 
         private async Task SelectJson()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Title = "Wybierz plik JSON",
-                Filters = new() { new FileDialogFilter { Name = "Pliki JSON", Extensions = { "json" } } }
+                Title = "Select JSON file",
+                Filters = new() { new FileDialogFilter { Name = "JSON Files", Extensions = { "json" } } }
             };
 
             var result = await openFileDialog.ShowAsync(_parentWindow);
@@ -52,7 +93,7 @@ namespace JsonSchemaGenerator.ViewModels
             {
                 JsonPath = selectedPath;  // Aktualizacja wartości, aby wywołać zmianę stanu
                 this.RaisePropertyChanged(nameof(JsonPath)); // Wymuszenie powiadomienia o zmianie
-                ValidationResult = "Plik JSON wybrany: " + JsonPath;
+                ValidationResult = "JSON file selected:  " + JsonPath;
             }
         }
 
@@ -63,72 +104,38 @@ namespace JsonSchemaGenerator.ViewModels
             {
                 SaveFileDialog saveFileDialog = new SaveFileDialog
                 {
-                    Title = "Zapisz JSON Schema",
-                    Filters = new() { new FileDialogFilter { Name = "Pliki JSON Schema", Extensions = { "json" } } },
+                    Title = "Save JSON Schema",
+                    Filters = new() { new FileDialogFilter { Name = "JSON Schema Files", Extensions = { "json" } } },
                     DefaultExtension = "json"
                 };
 
                 string filePath = await saveFileDialog.ShowAsync(_parentWindow);
                 if (!string.IsNullOrEmpty(filePath))
                 {
+                    // Pobieramy katalog i nazwę pliku bez rozszerzenia
+                    string directory = Path.GetDirectoryName(filePath);
+                    string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
+
+                    // Tworzymy nową nazwę pliku z dopiskiem .Schema.json
+                    string newFilePath = Path.Combine(directory, fileNameWithoutExtension + ".Schema.json");
+
                     string schema = GenerateJsonSchema(JsonPath);
 
                     if (!string.IsNullOrEmpty(schema) && schema != "{}") // Unikamy pustego schematu
                     {
-                        File.WriteAllText(filePath, schema);
-                        SchemaPath = filePath;
-                        ValidationResult = "Schemat JSON zapisany do: " + filePath;
+                        File.WriteAllText(newFilePath, schema);
+                        SchemaPath = newFilePath;
+                        ValidationResult = "JSON Schema saved to: " + newFilePath;
                     }
                     else
                     {
-                        ValidationResult = "Błąd: Nie udało się wygenerować schematu JSON.";
+                        ValidationResult = "Error: Failed to generate JSON Schema.";
                     }
                 }
             }
         }
 
 
-
-
-        private async Task ValidateJson()
-        {
-            var (jsonFile, schemaFile) = await SelectFilesForValidation();
-            if (!string.IsNullOrEmpty(jsonFile) && !string.IsNullOrEmpty(schemaFile))
-            {
-                bool isValid = ValidateJsonFile(jsonFile, schemaFile);
-                ValidationResult = isValid ? "Plik JSON jest zgodny ze schematem." : "Plik JSON NIE jest zgodny!";
-            }
-        }
-
-        private async Task<(string jsonFile, string schemaFile)> SelectFilesForValidation()
-        {
-            OpenFileDialog openFileDialog = new OpenFileDialog
-            {
-                Title = "Wybierz plik JSON do walidacji",
-                Filters = new() { new FileDialogFilter { Name = "Pliki JSON", Extensions = { "json" } } }
-            };
-            var jsonFile = (await openFileDialog.ShowAsync(_parentWindow))?.FirstOrDefault();
-
-            OpenFileDialog schemaDialog = new OpenFileDialog
-            {
-                Title = "Wybierz plik JSON Schema",
-                Filters = new() { new FileDialogFilter { Name = "Pliki JSON Schema", Extensions = { "json" } } }
-            };
-            var schemaFile = (await schemaDialog.ShowAsync(_parentWindow))?.FirstOrDefault();
-
-            return (jsonFile, schemaFile);
-        }
-   
-        private bool ValidateJsonFile(string jsonPath, string schemaPath)
-        {
-            string jsonContent = File.ReadAllText(jsonPath);
-            string schemaContent = File.ReadAllText(schemaPath);
-
-            JObject jsonObject = JObject.Parse(jsonContent);
-            JSchema schema = JSchema.Parse(schemaContent);
-
-            return jsonObject.IsValid(schema);
-        }
 
         private string GenerateJsonSchema(string jsonPath)
         {
@@ -203,6 +210,69 @@ namespace JsonSchemaGenerator.ViewModels
             };
         }
 
+        // Validation JSON with JSON Schema
+
+        private async Task SelectValidationJson()
+        {
+            ValidationJsonPath = await SelectFile("Select JSON file for validation");
+            ComparisonResult = !string.IsNullOrEmpty(ValidationJsonPath) ? $"Validation JSON file: {ValidationJsonPath}" : "";
+        }
+
+        private async Task SelectValidationSchema()
+        {
+            ValidationSchemaPath = await SelectFile("Select JSON Schema file");
+            ComparisonResult = !string.IsNullOrEmpty(ValidationSchemaPath) ? $"JSON Schema file: {ValidationSchemaPath}" : "";
+        }
+        private async Task<string> SelectFile(string title)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Title = title,
+                Filters = new() { new FileDialogFilter { Name = "JSON Files", Extensions = { "json" } } }
+            };
+
+            var result = await openFileDialog.ShowAsync(_parentWindow);
+            return result?.FirstOrDefault();
+        }
+
+        private async Task Compare()
+        {
+            if (string.IsNullOrEmpty(ValidationJsonPath) || string.IsNullOrEmpty(ValidationSchemaPath))
+            {
+                ComparisonResult = "Error: Select both files before comparing.";
+                return;
+            }
+
+            string jsonContent = File.ReadAllText(ValidationJsonPath);
+            string schemaContent = File.ReadAllText(ValidationSchemaPath);
+
+            JObject jsonObject = JObject.Parse(jsonContent);
+            JSchema schema = JSchema.Parse(schemaContent);
+
+            // ** Rekurencyjne ustawienie ścisłego dopasowania (blokowanie dodatkowych właściwości) **
+            ApplyStrictValidation(schema);
+
+            IList<string> errors;
+            bool isValid = jsonObject.IsValid(schema, out errors);
+
+            ComparisonResult = isValid ? "Files match." : $"Files DO NOT match!\nErrors:\n{string.Join("\n", errors)}";
+        }
+
+        /// <summary>
+        /// **Ustawia `AllowAdditionalProperties = false` dla każdego obiektu w schemacie**
+        /// </summary>
+        private void ApplyStrictValidation(JSchema schema)
+        {
+            schema.AllowAdditionalProperties = false;
+
+            foreach (var property in schema.Properties.Values)
+            {
+                if (property.Type == JSchemaType.Object)
+                {
+                    ApplyStrictValidation(property); // Rekurencyjne sprawdzenie zagnieżdżonych obiektów
+                }
+            }
+        }
 
 
     }
