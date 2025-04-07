@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:JsonSchemaGenerator.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+		xmlns:local="clr-namespace:JsonSchemaGenerator.Controls;assembly=JsonSchemaGenerator"
+        Width="850" Height="600"
+        x:Class="JsonSchemaGenerator.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="JsonSchemaGenerator">
+
+	<!-- <Design.DataContext> removed to avoid constructor error -->
+
+
+	<StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+		<StackPanel>
+			<TextBlock FontSize="26">Generate Schema from JSON</TextBlock>
+			<Button Name="SelectJsonButton" Content="Select JSON File" Command="{Binding SelectJsonCommand}" FontSize="20"/>
+			<Button Name="SaveSchemaButton" Content="Save JSON Schema" Command="{Binding SaveSchemaCommand}" FontSize="20"/>
+			<TextBlock Name="ResultText" Text="{Binding ValidationResult}" FontSize="26"/>
+		</StackPanel>
+		<Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*,*">
+			<!-- Dotychczasowy panel z przyciskami -->
+			<StackPanel Grid.ColumnSpan="2" Margin="10">
+				<TextBlock FontSize="26">Validate Schema with JSON</TextBlock>
+				<Button Content="Select JSON Schema File" Command="{Binding SelectValidationSchemaCommand}" FontSize="20"/>
+				<Button Content="Select JSON File" Command="{Binding SelectValidationJsonCommand}" FontSize="20"/>
+				<Button Content="Compare" Command="{Binding CompareCommand}" FontSize="20"/>
+				<TextBlock Text="{Binding ComparisonResult}" FontSize="20" Margin="0,10"/>
+			</StackPanel>
+
+			<!-- Lewa strona: JSON Schema -->
+			<StackPanel Grid.Row="2" Grid.Column="0" Margin="10">
+				<TextBlock Text="JSON Schema Preview" FontSize="20" Margin="0,0,0,5"/>
+				<local:CodeViewer CodeText="{Binding SchemaContent}" Grid.Row="2" Grid.Column="0" Margin="10"/>
+
+			</StackPanel>
+
+			<!-- Prawa strona: JSON -->
+			<StackPanel Grid.Row="2" Grid.Column="1" Margin="10">
+				<TextBlock Text="JSON Preview" FontSize="20" Margin="0,0,0,5"/>
+			
+					<local:CodeViewer CodeText="{Binding JsonContent}" Grid.Row="2" Grid.Column="1" Margin="10"/>
+			</StackPanel>
+		</Grid>
+
+	</StackPanel>
+
+
+</Window>
