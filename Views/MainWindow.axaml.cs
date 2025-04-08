@@ -10,7 +10,7 @@ namespace JsonSchemaGenerator.Views
         {
             InitializeComponent();
             DataContext = new MainWindowViewModel(this);
-
+            //asd
         }
         private void InitializeComponent()
         {
