@@ -1,32 +1,60 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="JsonSchemaGenerator.Controls.CodeViewer"
-             x:Name="Root">
-	<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+<UserControl
+    x:Class="JsonSchemaGenerator.Controls.CodeViewer"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Name="Root"
+    xmlns:local="clr-namespace:JsonSchemaGenerator.Controls"
+    xmlns:model="clr-namespace:JsonSchemaGenerator.Controls">
+
+	<ScrollViewer Height="500" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
 		<Grid ColumnDefinitions="Auto,*">
 			<!-- Numery linii -->
-			<TextBlock Name="LineNumbers"
-					   FontFamily="Consolas"
-					   FontSize="14"
-					   TextWrapping="NoWrap"
-					   Padding="5,2"
-					   VerticalAlignment="Top"
-					   Foreground="White"
-					   Background="Transparent" />
+			<ItemsControl Grid.Column="1"
+                          ItemsSource="{Binding LineNumbers, ElementName=Root}">
+				<ItemsControl.ItemsPanel>
+					<ItemsPanelTemplate>
+						<VirtualizingStackPanel />
+					</ItemsPanelTemplate>
+				</ItemsControl.ItemsPanel>
 
-			<!-- Kod JSON -->
-			<TextBox Grid.Column="1"
-					 FontFamily="Consolas"
-					 FontSize="14"
-					 IsReadOnly="True"
-					 AcceptsReturn="True"
-					 TextWrapping="NoWrap"
-					 BorderThickness="0"
-					 Padding="5,2"
-					 BorderBrush="Transparent"
-					 Background="Transparent"
-					 Foreground="White"
-					 Text="{Binding CodeText, ElementName=Root}" />
+				<ItemsControl.ItemTemplate>
+					<DataTemplate x:DataType="local:ColoredLine">
+						<TextBlock Name="LineNumbers"
+								FontFamily="Consolas"
+								FontSize="14"
+								Height="20"
+								TextWrapping="NoWrap"
+								Padding="5,2"
+								VerticalAlignment="Top"
+								Foreground="{Binding Color}"
+								Text="{Binding Text}"
+								Background="Transparent" />
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+			<!-- Pojedyncze linie kolorowane -->
+			<ItemsControl Margin="20,0,0,0"
+						  Grid.Column="1"
+                          ItemsSource="{Binding ParsedLines, ElementName=Root}">
+				<ItemsControl.ItemsPanel>
+					<ItemsPanelTemplate>
+						<VirtualizingStackPanel />
+					</ItemsPanelTemplate>
+				</ItemsControl.ItemsPanel>
+
+				<ItemsControl.ItemTemplate>
+					<DataTemplate x:DataType="local:ColoredLine">
+						<TextBlock FontFamily="Consolas"
+                                FontSize="14"
+                                Padding="5,2"
+								Height="20"
+
+                                TextWrapping="NoWrap"
+                                Foreground="{Binding Color}"
+                                Text="{Binding Text}" />
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
 		</Grid>
 	</ScrollViewer>
 </UserControl>

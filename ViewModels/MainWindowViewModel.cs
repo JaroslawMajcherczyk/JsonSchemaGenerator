@@ -2,11 +2,13 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Reactive;
     using System.Threading.Tasks;
     using Avalonia.Controls;
+    using Avalonia.Media;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Linq;
     using Newtonsoft.Json.Schema;
@@ -18,11 +20,35 @@
 
         private string _validationResult;
 
-        public string ValidationResult { get => _validationResult; set => this.RaiseAndSetIfChanged(ref _validationResult, value); }
+        public string ValidationResult
+        {
+            get => _validationResult;
+            set => this.RaiseAndSetIfChanged(ref _validationResult, value);
+        }
 
         private string _comparisonResult;
 
-        public string ComparisonResult { get => _comparisonResult; set => this.RaiseAndSetIfChanged(ref _comparisonResult, value); }
+        public string ComparisonResult
+        {
+            get => _comparisonResult;
+            set => this.RaiseAndSetIfChanged(ref _comparisonResult, value);
+        }
+
+        private IBrush _schemaBackground = Brushes.Transparent;
+
+        public IBrush SchemaBackground
+        {
+            get => _schemaBackground;
+            set => this.RaiseAndSetIfChanged(ref _schemaBackground, value);
+        }
+
+        private IBrush _jsonBackground = Brushes.Transparent;
+
+        public IBrush JsonBackground
+        {
+            get => _jsonBackground;
+            set => this.RaiseAndSetIfChanged(ref _jsonBackground, value);
+        }
 
         private string _validationJsonPath;
 
@@ -32,7 +58,7 @@
             set
             {
                 this.RaiseAndSetIfChanged(ref _validationJsonPath, value);
-                this.RaisePropertyChanged(nameof(ValidationJsonPath));
+                this.RaisePropertyChanged(nameof(ValidationJsonPath)); // Aktualizujemy ReactiveUI
             }
         }
 
@@ -44,8 +70,24 @@
             set
             {
                 this.RaiseAndSetIfChanged(ref _validationSchemaPath, value);
-                this.RaisePropertyChanged(nameof(ValidationSchemaPath));
+                this.RaisePropertyChanged(nameof(ValidationSchemaPath)); // Aktualizujemy ReactiveUI
             }
+        }
+
+        private List<int> _jsonErrorLines = new();
+
+        public List<int> JsonErrorLines
+        {
+            get => _jsonErrorLines;
+            set => this.RaiseAndSetIfChanged(ref _jsonErrorLines, value);
+        }
+
+        private List<int> _schemaErrorLines = new();
+
+        public List<int> SchemaErrorLines
+        {
+            get => _schemaErrorLines;
+            set => this.RaiseAndSetIfChanged(ref _schemaErrorLines, value);
         }
 
         public string JsonPath { get; set; }
@@ -89,9 +131,10 @@
             var result = await openFileDialog.ShowAsync(_parentWindow);
             if (result?.FirstOrDefault() is string selectedPath)
             {
-                JsonPath = selectedPath;  // Aktualizacja wartości, aby wywołać zmianę stanu
-                this.RaisePropertyChanged(nameof(JsonPath)); // Wymuszenie powiadomienia o zmianie
+                JsonPath = selectedPath;
+                this.RaisePropertyChanged(nameof(JsonPath));
                 ValidationResult = "JSON file selected:  " + JsonPath;
+                JsonContent = File.ReadAllText(JsonPath);
             }
         }
 
@@ -123,6 +166,9 @@
                         File.WriteAllText(newFilePath, schema);
                         SchemaPath = newFilePath;
                         ValidationResult = "JSON Schema saved to: " + newFilePath;
+
+                        // << DODAJ TO >>
+                        SchemaContent = schema;
                     }
                     else
                     {
@@ -131,8 +177,6 @@
                 }
             }
         }
-
-        // Enhanced Code with Regex Pattern Support
 
         private string GenerateJsonSchema(string jsonPath)
         {
@@ -185,7 +229,6 @@
             else if (token.Type == JTokenType.String)
             {
                 var schema = new JSchema { Type = JSchemaType.String };
-
                 string detectedPattern = GetPatternForProperty(propertyName, token.ToString());
                 if (!string.IsNullOrEmpty(detectedPattern))
                 {
@@ -237,28 +280,23 @@
             return string.Empty; // No pattern detected
         }
 
-        // Validation JSON with JSON Schema
+        private async Task SelectValidationJson()
+        {
+            ValidationJsonPath = await SelectFile("Select JSON file for validation");
+            ComparisonResult = !string.IsNullOrEmpty(ValidationJsonPath) ? $"Validation JSON file: {ValidationJsonPath}" : "";
+            if (!string.IsNullOrEmpty(ValidationJsonPath))
+                JsonContent = File.ReadAllText(ValidationJsonPath);
+        }
 
         private async Task SelectValidationSchema()
         {
             ValidationSchemaPath = await SelectFile("Select JSON Schema file");
+            ComparisonResult = !string.IsNullOrEmpty(ValidationSchemaPath) ? $"JSON Schema file: {ValidationSchemaPath}" : "";
             if (!string.IsNullOrEmpty(ValidationSchemaPath))
-            {
-                SchemaContent = await File.ReadAllTextAsync(ValidationSchemaPath);
-                ComparisonResult = $"JSON Schema file: {ValidationSchemaPath}";
-            }
+                SchemaContent = File.ReadAllText(ValidationSchemaPath);
         }
 
-        private async Task SelectValidationJson()
-        {
-            ValidationJsonPath = await SelectFile("Select JSON file for validation");
-            if (!string.IsNullOrEmpty(ValidationJsonPath))
-            {
-                JsonContent = await File.ReadAllTextAsync(ValidationJsonPath);
-                ComparisonResult = $"Validation JSON file: {ValidationJsonPath}";
-            }
-        }
-
+        // Validation JSON with JSON Schema
 
         private async Task<string> SelectFile(string title)
         {
@@ -286,14 +324,114 @@
             JObject jsonObject = JObject.Parse(jsonContent);
             JSchema schema = JSchema.Parse(schemaContent);
 
-            // ** Rekurencyjne ustawienie ścisłego dopasowania (blokowanie dodatkowych właściwości) **
             ApplyStrictValidation(schema);
 
             IList<string> errors;
             bool isValid = jsonObject.IsValid(schema, out errors);
 
-            ComparisonResult = isValid ? "Files match." : $"Files DO NOT match!\nErrors:\n{string.Join("\n", errors)}";
+            ComparisonResult = isValid
+                ? "Files match."
+                : $"Files DO NOT match!\nErrors:\n{string.Join("\n", errors)}";
+
+            Debug.WriteLine(ComparisonResult);
+
+            // 🔄 Aktualizacja widoków
+            JsonContent = jsonContent;
+            SchemaContent = schemaContent;
+
+            var schemaLines = schemaContent.Split('\n');
+            var jsonLines = jsonContent.Split('\n');
+
+            List<int> jsonErrorLines = new();
+            List<int> schemaErrorLines = new();
+
+            // 🔹 Etap 1: Linie błędów z JSON
+            foreach (var error in errors)
+            {
+                var jsonLineMatch = System.Text.RegularExpressions.Regex.Match(error, @"line (\d+)");
+                if (jsonLineMatch.Success && int.TryParse(jsonLineMatch.Groups[1].Value, out int jsonLine))
+                {
+                    if (!jsonErrorLines.Contains(jsonLine))
+                        jsonErrorLines.Add(jsonLine);
+                }
+
+                var schemaPosMatch = System.Text.RegularExpressions.Regex.Match(error, @"position (\d+)");
+                if (schemaPosMatch.Success && int.TryParse(schemaPosMatch.Groups[1].Value, out int pos))
+                {
+                    int charCount = 0;
+                    for (int i = 0; i < schemaLines.Length; i++)
+                    {
+                        charCount += schemaLines[i].Length + 1;
+                        if (charCount >= pos)
+                        {
+                            if (!schemaErrorLines.Contains(i + 1))
+                                schemaErrorLines.Add(i + 1);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 🔹 Etap 2: dynamiczne słowa kluczowe z Path '...'
+            var keywords = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+            foreach (var error in errors)
+            {
+                var pathMatch = System.Text.RegularExpressions.Regex.Match(error, @"Path '([^']+)'");
+                if (pathMatch.Success)
+                {
+                    var rawParts = pathMatch.Groups[1].Value.Split('.');
+
+                    foreach (var raw in rawParts)
+                    {
+                        // Usuwanie indeksów z tablic: tags[1] -> tags
+                        var clean = System.Text.RegularExpressions.Regex.Replace(raw, @"\[\d+\]", "");
+                        if (!string.IsNullOrWhiteSpace(clean))
+                            keywords.Add(clean);
+                    }
+                }
+            }
+
+            // 🔹 Etap 3: znajdź linie schematu zawierające słowo kluczowe + cały blok klamrowy
+            if (keywords.Any())
+            {
+                for (int i = 0; i < schemaLines.Length; i++)
+                {
+                    foreach (var key in keywords)
+                    {
+                        if (schemaLines[i].IndexOf($"\"{key}\"", StringComparison.InvariantCultureIgnoreCase) >= 0)
+                        {
+                            if (!schemaErrorLines.Contains(i + 1))
+                                schemaErrorLines.Add(i + 1);
+
+                            // 🔁 Szukaj bloku { ... } zbalansowanego
+                            if (schemaLines[i].Contains("{"))
+                            {
+                                int braceBalance = schemaLines[i].Count(c => c == '{') - schemaLines[i].Count(c => c == '}');
+                                int j = i + 1;
+
+                                while (j < schemaLines.Length && braceBalance > 0)
+                                {
+                                    braceBalance += schemaLines[j].Count(c => c == '{');
+                                    braceBalance -= schemaLines[j].Count(c => c == '}');
+
+                                    if (!schemaErrorLines.Contains(j + 1))
+                                        schemaErrorLines.Add(j + 1);
+
+                                    j++;
+                                }
+                            }
+
+                            break; // nie przeszukuj dalej tej samej linii
+                        }
+                    }
+                }
+            }
+
+            // 🔚 Przekazanie linii błędów do widoku
+            JsonErrorLines = jsonErrorLines;
+            SchemaErrorLines = schemaErrorLines;
         }
+
 
         private void ApplyStrictValidation(JSchema schema)
         {
@@ -307,7 +445,9 @@
                 }
             }
         }
+
         private string _schemaContent;
+
         public string SchemaContent
         {
             get => _schemaContent;
@@ -315,11 +455,11 @@
         }
 
         private string _jsonContent;
+
         public string JsonContent
         {
             get => _jsonContent;
             set => this.RaiseAndSetIfChanged(ref _jsonContent, value);
         }
-
     }
 }
